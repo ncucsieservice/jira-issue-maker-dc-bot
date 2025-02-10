@@ -24,6 +24,7 @@ intents = discord.Intents.all()
 bot = commands.Bot(command_prefix = "/", intents = intents)
 
 
+
 def get_jira_account_id(email):
     user = jira.search_users(query=email)
     if user:
@@ -99,8 +100,24 @@ async def make_issue(interaction: discord.Interaction, assignee: str, issue_name
         }
         new_issue = jira.create_issue(fields=issue_dict)
 
-        # 使用 followup 發送結果消息
-        await interaction.followup.send(f"✅ Jira issue created: {new_issue.key} (assignee: `{assignee_name}`, reporter: `{interaction.user.name}`)")
+        # 判斷發送通知的頻道，假設我們需要根據不同的類別來發送通知
+        category = interaction.channel.category  # 取得頻道所屬的類別
+        if category:
+            # 判斷類別名稱來確定發送通知的頻道
+            if category.name == "Admin":
+                channel_name = "jira-notify"
+            else:
+                channel_name = "一般"  # 默認頻道名稱
+
+            # 發送到對應頻道
+            notify_channel = discord.utils.get(interaction.guild.text_channels, name=channel_name)
+            if notify_channel:
+                await notify_channel.send(f"✅ Jira issue created: {new_issue.key} (assignee: `{assignee_name}`, reporter: `{interaction.user.name}`)")
+            else:
+                await interaction.followup.send(f"❌ 找不到通知頻道 `{channel_name}`。")
+        else:
+            await interaction.followup.send(f"❌ 無法判斷訊息所屬類別，無法發送通知。")
+
     except Exception as e:
         await interaction.followup.send(f"❌ An error occurred: {e}")
         print(f"Error creating Jira issue: {e}")
