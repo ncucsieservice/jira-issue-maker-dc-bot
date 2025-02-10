@@ -8,6 +8,9 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
+## DC bot
+官方文件: https://discordpy.readthedocs.io/en/latest/ext/commands/commands.html
+
 ## Jira
 
 ### API 設定
