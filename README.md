@@ -80,7 +80,7 @@
    ```python
    CATEGORY_PROJECT_MAPPING = {
        "Admin": ("CSTPTEST", "jira-notify-admin"),
-       "中學生AI": ("CSTPTEST", "jira-notify-ai1"),
+       "中學生AI": ("CSTPAI1", "jira-notify-ai1"),
        "小學生AI": ("CSTPAI2", "jira-notify"),
    }
    ```
