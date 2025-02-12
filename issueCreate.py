@@ -107,7 +107,7 @@ async def make_issue(interaction, assignee: str, issue_name: str, issue_descript
                 # 發送到對應頻道
                 notify_channel = discord.utils.get(interaction.guild.text_channels, name=notify_channel_name)
                 if notify_channel:
-                    await notify_channel.send(f"✅ 已建立 Jira Issue: {new_issue.key} (受託人: `{assignee_name}`, 回報者: `{interaction.user.name}`)")
+                    await notify_channel.send(f"✅ 已建立 Jira Issue: {new_issue.key} (受託人: `{assignee_name}`, 回報者: `{interaction.user.name}`, 項目: `{category_name}`, 說明: `{issue_desc}`)")
                 else:
                     await interaction.followup.send(f"❌ 找不到通知頻道 `{notify_channel_name}`。")
             else:
