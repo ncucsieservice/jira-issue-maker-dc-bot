@@ -1,55 +1,56 @@
-import discord
-import requests
-import json
 import os
-from dotenv import load_dotenv
-from discord.ext import commands
 from jira import JIRA
 from userMapping import get_jira_email
-from discord import app_commands
+import discord
 
 
-load_dotenv()
-
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 JIRA_URL = os.getenv("JIRA_URL")
 JIRA_EMAIL = os.getenv("JIRA_EMAIL")
 JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN")
-JIRA_PROJECT_KEY = os.getenv("JIRA_PROJECT_KEY")
 
 jiraOptions = {'server': JIRA_URL}
 jira = JIRA(options=jiraOptions, basic_auth=(JIRA_EMAIL, JIRA_API_TOKEN))
 
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix = "/", intents = intents)
+CATEGORY_PROJECT_MAPPING = {
+    "Admin": ("CSTPTEST", "jira-notify-admin"),
+    "中學生AI": ("CSTPTEST", "jira-notify-ai1"),
+    "小學生AI": ("CSTPAI2", "jira-notify"),
+}
 
 
 def get_jira_account_id(email):
+    """
+    根據用戶的 Email 地址查詢其 Jira 帳戶 ID。
+    
+    參數:
+    email (str): 用戶的 Email 地址
+    
+    返回:
+    str: 匹配的 Jira 帳戶 ID，如果找不到則返回 None。
+    """
     user = jira.search_users(query=email)
     if user:
         return user[0].accountId  # 取得第一個匹配的帳號 ID
     return None
 
 
-@bot.event
-async def on_ready():
-    print(f"目前登入身份 --> {bot.user}")
-    slash = await bot.tree.sync()
-    print(f"載入 {len(slash)} 個斜線指令")
+async def make_issue(interaction, assignee: str, issue_name: str, issue_description: str):
+    """
+    建立 Jira Issue，並發送相關通知。
 
-
-@bot.tree.command(name="make-issue", description="建立 Jira Issue")
-@app_commands.describe(
-    assignee="指定誰要處理這份任務 (可以是 Discord @標人 或是純文字 username)",
-    issue_name="指定任務的名稱"
-)
-async def make_issue(interaction: discord.Interaction, assignee: str, issue_name: str):
+    參數:
+    interaction (discord.Interaction): 與 Discord 用戶的交互。
+    assignee (str): 被指定為受託人的用戶名稱或 Discord @標註。
+    issue_name (str): Jira Issue 的標題。
+    issue_description (str): Jira Issue 的描述。
+    """
     try:
         # 立即回應以避免 interaction 過期
-        await interaction.response.send_message("正在處理您的請求...")
+        await interaction.response.send_message("正在處理請求...")
 
         # 如果沒有指定 issue_name，使用默認名稱
         issue_title = issue_name if issue_name else "No title provided for the issue."
+        issue_desc = issue_description if issue_description else "No description provided for the issue."
         reporter_discord_id = str(interaction.user.name)  # 記錄報告者 (A 用戶的 Discord ID)
 
         # 處理 assignee 字串或標註
@@ -85,25 +86,35 @@ async def make_issue(interaction: discord.Interaction, assignee: str, issue_name
             await interaction.followup.send(f"❌ 無法找到 `{interaction.user.name}` 的 Jira 帳戶，請先綁定！")
             return
 
-        print(f"Issue Title: {issue_title}")
-        print(f"Assignee: {assignee_name}, Reporter: {interaction.user.name}")
+        # 判斷發送通知的頻道，根據頻道類別來決定 Jira 專案與通知頻道
+        category = interaction.channel.category  # 取得頻道所屬的類別
 
-        # 建立 Jira issue
-        issue_dict = {
-            'project': {'key': JIRA_PROJECT_KEY},
-            'summary': issue_title,
-            'description': f'This issue was automatically created from Discord by {interaction.user.name}.',
-            'issuetype': {'name': 'Task'},
-            'assignee': {'accountId': assignee_jira_id},  # 指定受託人
-            'reporter': {'accountId': reporter_jira_id},  # 指定回報者
-        }
-        new_issue = jira.create_issue(fields=issue_dict)
+        if category:
+            category_name = category.name
+            if category_name in CATEGORY_PROJECT_MAPPING:
+                jira_project_key, notify_channel_name = CATEGORY_PROJECT_MAPPING[category_name]
 
-        # 使用 followup 發送結果消息
-        await interaction.followup.send(f"✅ Jira issue created: {new_issue.key} (assignee: `{assignee_name}`, reporter: `{interaction.user.name}`)")
+                issue_dict = {
+                    'project': {'key': jira_project_key},
+                    'summary': issue_title,
+                    'description': issue_desc, 
+                    'issuetype': {'name': 'Task'},
+                    'assignee': {'accountId': assignee_jira_id},  
+                    'reporter': {'accountId': reporter_jira_id},  
+                }
+                new_issue = jira.create_issue(fields=issue_dict)
+
+                # 發送到對應頻道
+                notify_channel = discord.utils.get(interaction.guild.text_channels, name=notify_channel_name)
+                if notify_channel:
+                    await notify_channel.send(f"✅ 已建立 Jira Issue: {new_issue.key} (受託人: `{assignee_name}`, 回報者: `{interaction.user.name}`)")
+                else:
+                    await interaction.followup.send(f"❌ 找不到通知頻道 `{notify_channel_name}`。")
+            else:
+                await interaction.followup.send(f"❌ 無法識別此類別 `{category_name}`，無法發送通知。")
+        else:
+            await interaction.followup.send(f"❌ 無法判斷訊息所屬類別，無法發送通知。")
+
     except Exception as e:
         await interaction.followup.send(f"❌ An error occurred: {e}")
         print(f"Error creating Jira issue: {e}")
-
-
-bot.run(DISCORD_TOKEN)

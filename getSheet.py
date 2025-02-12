@@ -16,5 +16,8 @@ def get_google_sheet():
     
     creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)  # 你的 JSON 憑證
     client = gspread.authorize(creds)
-    sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
+
+    # open with name = "113-2 jira-dc-mapping"
+    sheet = client.open("113-2 jira-dc-mapping").worksheet("sheet1")
+    # sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
     return sheet

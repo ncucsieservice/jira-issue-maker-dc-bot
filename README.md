@@ -1,69 +1,98 @@
-# jira-issue-maker-dc-bot
-用來 assign issue 的 DC 機器人
+# Discord Jira Issue Creator Bot
 
-## 虛擬環境設立(Wins)
-```
-python -m venv venv
-.\venv\bin\activate
-pip install -r requirements.txt
-```
+這個專案是基於 Discord Bot 和 Jira API 建立的，用來讓 Discord 用戶直接在指定的 Discord 頻道中建立 Jira 任務（Issue）。Bot 支援指定受託人、設置任務標題、描述，並發送通知到相對應的頻道。
 
-## DC bot
-官方文件: https://discordpy.readthedocs.io/en/latest/ext/commands/commands.html
+## 功能
 
-## Jira
+- **建立 Jira Issue**：透過 Discord 指令 `/make-issue` 建立 Jira 任務。
+- **指定受託人**：可以指定受託人來處理該任務，支援使用 Discord 用戶名稱或 @標註。
+- **Issue 描述**：可以選擇為每個 Jira 任務加入描述。
+- **頻道通知**：根據任務所屬的 Discord 頻道類別，將相關的 Jira Issue 通知發送到指定頻道。
 
-### API 設定
-https://id.atlassian.com/manage-profile/security
+## 使用方式
 
-- issue type: 
-  - https://support.atlassian.com/jira-cloud-administration/docs/what-are-issue-types/
-  - https://confluence.atlassian.com/jirakb/finding-the-id-for-issue-types-646186508.html
+1. **啟動 Bot**：
 
-### project permission 設定
-參考[官方文件](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/#api-rest-api-3-issue-post)裡面提及的內容，若要使用 API 建立專案 issue，必須先開啟 permission，開啟參考[此文件](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/#permissions)。
+   在機器使用命令啟動 Bot：
+
+   ```bash
+   python bot.py
+   ```
+
+2. **創建 Issue**：
+
+   在 Discord 中，使用以下指令來創建一個 Jira Issue：
+
+   ```
+   /make-issue assignee="DiscordUser" issue_name="任務名稱" issue_description="任務描述"
+   ```
+   ![](img/img1.png)
+
+   - `assignee`：指定受託人，也就是這個任務要給誰做。機器人支持 Discord 用戶名稱或 @標註。
+   - `issue_name`：設定 Issue 的標題。
+   - `issue_description`：設定 Issue 的描述。
+
+   ![](img/img2.png)
+
+3. **確認 Issue 創建**：
+
+   當任務成功創建後，Bot 會在指定的通知頻道中發送以下訊息：
+
+   ```
+   ✅ 已建立 Jira Issue: CSTPTEST-1234 (受託人: `DiscordUser`, 回報者: `YourName`)
+   ```
+   ![](img/img3.png)
+   ![](img/img4.png)
+
+## 安裝與設置
+
+1. **安裝依賴套件**：
+
+   請先安裝所需的 Python 套件，使用以下指令：
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **環境變數設置**：
+
+   創建一個 `.env` 文件，並將以下設置添加進去：
+
+   ```env
+   DISCORD_TOKEN=<YOUR_DISCORD_TOKEN>
+   JIRA_URL=<YOUR_JIRA_URL>
+   JIRA_EMAIL=<YOUR_JIRA_EMAIL>
+   JIRA_API_TOKEN=<YOUR_JIRA_API_TOKEN>
+   ```
+
+   - `DISCORD_TOKEN`：從 [Discord 開發者平台](https://discord.com/developers/applications) 中獲取 Bot 的 Token。
+   - `JIRA_URL`：您的 Jira 伺服器網址。
+   - `JIRA_EMAIL` 和 `JIRA_API_TOKEN`：用於 Jira API 身份驗證的電子郵件和 API Token。
+
+3. **用戶對應設定**：
+
+   使用 `userMapping.py` 文件來設定 Discord 用戶和 Jira 帳戶的對應。確保每個 Discord 用戶名稱與其對應的 Jira 帳戶電子郵件匹配。
+
+4. **設置頻道與專案映射**：
+
+   在 `CATEGORY_PROJECT_MAPPING` 字典中，根據 Discord 頻道的類別名稱映射對應的 Jira 專案和通知頻道。例如：
+
+   ```python
+   CATEGORY_PROJECT_MAPPING = {
+       "Admin": ("CSTPTEST", "jira-notify-admin"),
+       "中學生AI": ("CSTPTEST", "jira-notify-ai1"),
+       "小學生AI": ("CSTPAI2", "jira-notify"),
+   }
+   ```
+
+   - `CSTPTEST` 和 `CSTPAI2` 是 Jira 中的專案代碼。
+   - `jira-notify-admin` 等是 Discord 頻道的名稱，通知將發送至這些頻道。
 
 
-### 1. **JIRA_URL**
-   - **位置**：這是你的 Jira 站點的 URL。
-   - **如何取得**：
-     1. 登入你的 Jira 帳戶。
-     2. 查看瀏覽器的地址列，你會看到像這樣的網址：`https://yourdomain.atlassian.net`。
-     3. 這就是你的 `JIRA_URL`。
 
----
+## 注意事項
 
-### 2. **JIRA_EMAIL**
-   - **位置**：這是你登入 Jira 的電子郵件地址。
-   - **如何取得**：
-     1. 使用你平常登入 Jira 的電子郵件。
-     2. 這個電子郵件需要與 API Token 配對使用。
-
----
-
-### 3. **JIRA_API_TOKEN**
-   - **位置**：這是一個用於 API 認證的專用密鑰，類似密碼。
-   - **如何取得**：
-     1. 登入你的 Atlassian 帳戶：[Atlassian API Token](https://id.atlassian.com/manage-profile/security/api-tokens)。
-     2. 點擊「**Create API token**」按鈕。
-     3. 輸入 Token 名稱（例如 `Discord Bot Token`）。
-     4. 點擊「Create」，然後複製生成的 Token，並妥善保存。
-        - **注意**：Token 只會顯示一次，請確保將它存入安全的地方（例如 `.env` 文件）。
-
-### 4. **JIRA_PROJECT_KEY**
-   - **位置**：這是你的 Jira 專案的代碼，用於指定在哪個專案中建立 Issue。
-   - **如何取得**：
-     1. 登入你的 Jira 帳戶，進入你要使用的專案。
-     2. 查看該專案的 Issue 列表。
-     3. 在 Issue 的名稱前面，會有一個專案代碼，例如：
-        ```
-        MYPROJ-123
-        ```
-     4. 取 `MYPROJ` 作為 `JIRA_PROJECT_KEY`。
-
-## 小提醒
-- 不要用 3.13
-  - https://github.com/Rapptz/discord.py/issues/9742
-- 不要用 MSYS 的 Python ...
-  - 用 vscode 開一個 Python 官網載的 python.exe 所建立的虛擬環境 ... 不然會一直報SSL錯誤
-    - discord.com:443 ssl:True [SSLCertVerificationError: (1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1000)')]
+- 確保所有需要的環境變數和設定文件都已正確配置。
+- 受託人和回報者必須在 Jira 中有有效的帳戶，並且要在 `userMapping.py` 文件中正確對應。
+- 頻道類別名稱必須與 `CATEGORY_PROJECT_MAPPING` 中的鍵相匹配，以便發送通知。
+- DC 群組內所有學生必須在 Google Sheet 中輸入完成 DC 用戶名稱以及 Jira 帳戶郵件
