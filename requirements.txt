@@ -2,3 +2,5 @@ discord.py
 requests
 python-dotenv
 jira
+gspread
+oauth2client

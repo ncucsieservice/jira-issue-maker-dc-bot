@@ -2,3 +2,5 @@
 /venv/
 /test/
 /.venv/
+credentials.json
+__pycache__/
